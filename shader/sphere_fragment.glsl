@@ -2,6 +2,7 @@
 out vec4 FragColor;
 in vec3 normal_vec;
 uniform vec3 lightSource;
+uniform float radius;
 
 #define M_PI 3.1415926535897932384626433832795
 
@@ -18,8 +19,8 @@ float Vec3Degree(vec3 a, vec3 b) {
 }
 void main() {
     float brightness = 1.0f;
-    vec3 normal_vec2 = vec3(normal_vec.x, normal_vec.y, sqrt(-pow(normal_vec.x, 2.0f) - pow(normal_vec.y, 2.0f) + pow(0.5f, 2.0f)));
+    vec3 normal_vec2 = vec3(normal_vec.x, normal_vec.y, sqrt(-pow(normal_vec.x, 2.0f) - pow(normal_vec.y, 2.0f) + pow(radius, 2.0f)));
     float degree = Vec3Degree(normal_vec2, lightSource);
-    brightness = degree / (M_PI*2);
-FragColor=vec4(brightness,brightness,brightness,1.0f);
+    brightness = pow(degree / (M_PI), 4);
+    FragColor=vec4(brightness, brightness, brightness, 1.0f);
 }
