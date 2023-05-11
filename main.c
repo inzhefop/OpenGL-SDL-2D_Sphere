@@ -10,37 +10,38 @@
 #include <cglm/cglm.h>
 #include <cglm/affine.h>
 
+#define PI 3.1415926535897932384626433832795
+
+struct Sphere {
+    unsigned int VBO;
+    unsigned int VAO;
+    int polygons;
+    float radius;
+    unsigned int shader;
+    vec3 light_direction;
+    mat4 transformation;
+};
+
 struct Shader {
     unsigned int id;
 };
 
-char* shader_read_file(const char* filename) {
-    FILE* file;
-    file = fopen(filename, "r");
-    if (!(file == NULL)) {
-        fseek(file, 0L, SEEK_END);
-        char *shadercode = malloc(sizeof(char) * ftell(file));
-        rewind(file);
-        char c; int i = 0;
-        char bracket = '}';
-        int lastbracket = 0;
-        while ((c = fgetc(file)) != EOF) {
-            shadercode[i] = c;
-            if (c == bracket) {
-                lastbracket = i;
-                //printf("%d\n", lastbracket);
-            }  
-            i++;
-        }
+char * read_to_string(const char * filename) {
+    char * buffer = 0;
+    long length;
+    FILE *f = fopen(filename, "rb");
 
-        for (int b = lastbracket + 1; b < i; b++) {
-            shadercode[b] = ' ';
+    if (f) {
+        fseek(f, 0, SEEK_END);
+        length = ftell (f);
+        fseek(f, 0, SEEK_SET);
+        buffer = malloc(length);
+        if (buffer) {
+            fread(buffer, 1, length, f);
         }
-        return shadercode;
-    } else {
-        printf("failed to read %s - reason: missing or invalid source!\n", filename);
-        return "";
+        fclose(f);
     }
+    return buffer;
 }
 
 unsigned int shader(const char * vertex_path, const char* fragment_path) {
@@ -49,8 +50,8 @@ unsigned int shader(const char * vertex_path, const char* fragment_path) {
     int success;
     char infoLog[512];
 
-    const char * vertex_shader_src = shader_read_file(vertex_path);
-    const char * fragment_shader_src = shader_read_file(fragment_path);
+    const char * vertex_shader_src = read_to_string(vertex_path);
+    const char * fragment_shader_src = read_to_string(fragment_path);
 
     unsigned int vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertex_shader, 1, &vertex_shader_src, NULL);
@@ -108,8 +109,6 @@ SDL_Window * createWindow(int width, int hight, char* title) {
     window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, hight, SDL_WINDOW_OPENGL);
     SDL_GLContext glContext = SDL_GL_CreateContext(window);
 
-    
-    
     GLenum err = glewInit(); //GLEW Error handling
     if(err != GLEW_OK) {
         printf("Error: %s\n", glewGetErrorString(err));
@@ -140,78 +139,89 @@ void renderer_enable_settings() {
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
-float * createCircle(int triangles) {
-    int num_vertices = triangles * 3;
-    int num_floats = num_vertices * 3;
-    float * vertices = malloc(sizeof(float) * num_floats);
-    float radius = 0.5f;
-    float step_length = (radius*2) / (triangles/2);
-    int eswitch = 1;
-    float x_position = -radius;
+float * createBetterCircle (int triangles, float radius) {
+    float * vertices = malloc(sizeof(float) * 9.0f * triangles);
+    float angle = 0.0f;
+    float angle_step = 2*PI / (float) triangles;
+    int active_triangle = 0;
+    int multiplier = 1;
 
-    for (int i = 0; i < triangles; i++) {
+    while (angle < (2 * PI) && active_triangle < triangles) {
+        if (angle >= PI) { multiplier = -1; } else { multiplier = 1; }
 
-        if (x_position + step_length > radius) {
-            step_length = radius - x_position;
-        }
-        
-        vertices[i*9 + 0] = 0.0f; //x 
-        vertices[i*9 + 1] = 0.0f; //y
-        vertices[i*9 + 2] = 0.0f; //z
+        vertices[9*active_triangle + 0] = 0.0f;
+        vertices[9*active_triangle + 1] = 0.0f;
+        vertices[9*active_triangle + 2] = 0.0f;
 
-        vertices[i*9 + 3] = x_position;
-        vertices[i*9 + 4] = sqrt(pow(radius, 2) - pow(x_position, 2)) * eswitch;
-        vertices[i*9 + 5] = 0.0f;
+        vertices[9*active_triangle + 3] = cos(angle) * radius;
+        vertices[9*active_triangle + 4] = sqrt(-pow(cos(angle) * radius, 2.0f) + pow(radius, 2.0f)) * multiplier;
+        vertices[9*active_triangle + 5] = 0.0f;
 
-        vertices[i*9 + 6] = x_position + step_length;
-        vertices[i*9 + 7] = sqrt(pow(radius, 2) - pow(x_position + step_length, 2)) * eswitch;
-        vertices[i*9 + 8] = 0.0f;
+        if (angle + angle_step > PI) { multiplier = -1; } else { multiplier = 1; }
 
-        eswitch *= -1;
-        if (eswitch > 0) {
-            x_position += step_length;
-        }
+        vertices[9*active_triangle + 6] = cos(angle + angle_step) * radius;
+        vertices[9*active_triangle + 7] = sqrt(-pow(cos(angle + angle_step) * radius, 2.0f) + pow(radius, 2.0f)) * multiplier;
+        vertices[9*active_triangle + 8] = 0.0f;
+
+        angle += angle_step;
+        active_triangle++;
     }
-    
+
     return vertices;
 }
 
-int main() {
-    int triangles = 1000;
-    SDL_Window * window = createWindow(720, 720, "Sphere");
-    GLuint sphere_shader = shader("./shader/sphere_vertex.glsl", "./shader/sphere_fragment.glsl");
-    renderer_enable_settings();
-    bool running = true;
-    float * vertices = createCircle(triangles);
-
-    unsigned int VBO;
-    glGenBuffers(1, &VBO);
-    
-    unsigned int VAO;
-    glGenVertexArrays(1, &VAO);  
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, triangles * 9 * sizeof(float), vertices, GL_STATIC_DRAW);
+void opengl(struct Sphere * sphere) {
+    float * vertices = createBetterCircle(sphere->polygons, sphere->radius);
+    glBindVertexArray(sphere->VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, sphere->VBO);
+    glBufferData(GL_ARRAY_BUFFER, sphere->polygons * 9 * sizeof(float), vertices, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0); 
+    free(vertices);
+}
 
-    glUseProgram(sphere_shader);
-    int lightSourceLocation = glGetUniformLocation(sphere_shader, "lightSource");
-    vec3 lightdirection = {-1.0f, -1.0f, -1.0f};
-    glUniform3f(lightSourceLocation, lightdirection[0], lightdirection[1], lightdirection[2]);
-    int transformLocation = glGetUniformLocation(sphere_shader, "transform");
-    mat4 transformation;
-    glm_mat4_identity(transformation);
+void sphereInit(struct Sphere * sphere) {
+    sphere->polygons = 100;
+    sphere->radius = 0.75f;
+
+    glGenBuffers(1, &sphere->VBO);
+    glGenVertexArrays(1, &sphere->VAO);
+
+    sphere->shader = shader("./shader/sphere_vertex.glsl", "./shader/sphere_fragment.glsl");
+    opengl(sphere);
+
+    glUseProgram(sphere->shader);
+    int lightSourceLocation = glGetUniformLocation(sphere->shader, "lightSource");
+    int radiusLocation = glGetUniformLocation(sphere->shader, "radius");
+
+    glm_vec3_copy((vec3) {-1.0f, -1.0f, -1.0f}, sphere->light_direction);
+    glUniform3f(lightSourceLocation, sphere->light_direction[0], sphere->light_direction[1], sphere->light_direction[2]);
+    glUniform1f(radiusLocation, sphere->radius);
+    glm_mat4_identity(sphere->transformation);
+}
+
+int main() {
+    struct Sphere sphere;
+    SDL_Window * window = createWindow(720, 720, "Sphere");
+    renderer_enable_settings();
+    bool running = true;
+    sphereInit(&sphere);
+
+    char title[128];
+    sprintf(title, "2D Sphere - Rendering %d Polygons", sphere.polygons);
+    SDL_SetWindowTitle(window, title);
     
     while (running) {
         window_clear();
 
-        glUseProgram(sphere_shader);
-        float counter = SDL_GetTicks64() / 1000.0f;
-        glUniformMatrix4fv(transformLocation, 1, GL_FALSE, transformation[0]);
-        glUniform3f(lightSourceLocation, lightdirection[0], lightdirection[1], lightdirection[2]);
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, triangles * 9);
+        glUseProgram(sphere.shader);
+        float counter = SDL_GetTicks64() / 2000.0f;
+        glm_rotate(sphere.transformation, 0.01f, (vec3) {0.0f, 0.0f, 1.0f});
+        glUniformMatrix4fv(glGetUniformLocation(sphere.shader, "transform"), 1, GL_FALSE, sphere.transformation[0]);
+        glm_vec3_copy((vec3) {-sin(counter), -cos(counter), -cos(counter)}, sphere.light_direction);
+        glUniform3f(glGetUniformLocation(sphere.shader, "lightSource"), sphere.light_direction[0], sphere.light_direction[1], sphere.light_direction[2]);
+        glBindVertexArray(sphere.VAO);
+        glDrawArrays(GL_TRIANGLES, 0, sphere.polygons * 9);
 
         SDL_Event event;
         while(SDL_PollEvent(&event)) {
@@ -222,34 +232,26 @@ int main() {
                     case (SDLK_ESCAPE):
                         running = false;
                         break;
-                    case (SDLK_w):
-                        lightdirection[1] -= 0.2f;
-                        break;
-                    case (SDLK_s):
-                        lightdirection[1] += 0.2f;
-                        break;
-                    case (SDLK_a):
-                        lightdirection[0] += 0.2f;
-                        break;
-                    case (SDLK_d):
-                        lightdirection[0] -= 0.2f;
-                        break;
-                    case (SDLK_q):
-                        lightdirection[2] -= 0.2f;
-                        break;
-                    case (SDLK_e):
-                        lightdirection[2] += 0.2f;
-                        break;
                     case (SDLK_DELETE):
-                        glm_vec3_copy((vec3) {0.0f, 0.0f, -1.0f}, lightdirection);
+                        glm_vec3_copy((vec3) {0.0f, 0.0f, -1.0f}, sphere.light_direction);
+                        break;
+                    case (SDLK_PLUS):
+                        sphere.polygons += 1;
+                        sprintf(title, "2D Sphere - Rendering %d Polygons", sphere.polygons);
+                        SDL_SetWindowTitle(window, title);
+                        opengl(&sphere);
+                        break;
+                    case (SDLK_MINUS):
+                        sphere.polygons -= 1;
+                        sprintf(title, "2D Sphere - Rendering %d Polygons", sphere.polygons);
+                        SDL_SetWindowTitle(window, title);
+                        opengl(&sphere);
                         break;
                 }
             }
         }
-
         windowSwapBuffer(window);
     }
 
-    free(vertices);
     return 0;
 }
