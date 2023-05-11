@@ -8,3 +8,6 @@ The Polgons are created with a cos function in the circle equation multiplied wi
 y = sqrt(-(cos(β) * r) + r^2) or for the lower part: y = (-1) * sqrt(-(cos(β) * r) + r^2) </br>
 
 The Cos-function actually results by calculating the beta-angle in the circle: </br>
+Pythagoras: A^2 + G^2 = H^2 -> G = sqrt(-x^2+r^2); H = sqrt((1-(r-x))^2+(-x^2+r^2) </br>
+-> cos(β) = sqrt(-x^2+r^2) / sqrt((1-(r-x))^2+(-x^2+r^2) </br>
+<=> cos^2(β) = (2x-2xr+x^2+1-2r+r^2) / (-2xr+2x+1-2r+2r)
