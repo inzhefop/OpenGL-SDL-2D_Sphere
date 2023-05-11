@@ -1,5 +1,5 @@
 # OpenGL-SDL-2D_Sphere
-![alt text](https://github.com/inzhefop/OpenGL-SDL-2D_Sphere/blob/main/sample.png?raw=true)
+![alt text](https://github.com/inzhefop/OpenGL-SDL-2D_Sphere/blob/main/sample.png?raw=true) </br>  </br> 
 A small project to create a fake sphere (using shaders) from a circle! (circle polygons are created in the program -> count variable)
 
 On windows you can compile the project with .\build.bat. You need sdl2, glew, gl and cglm installed! </br>
