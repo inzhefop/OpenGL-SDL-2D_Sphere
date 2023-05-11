@@ -22,3 +22,5 @@ The 3D light effect is created in the fragment shader, where I interpolated the 
 x^2 + y^2 + z^2 = r^2 <=> sqrt(-pos.x^2 - pos.y^2 + radius^2) = z </br>
 
 After passing a uniform light-source vector, the angle between those two vectors is calculated and normalized to a value between 0 and 1 and used for the brightness of this fragment. For realism this brightness-value is potntiated with 4 (or 3) and then passed as the value for red, green and blue
+
+[alt text](https://github.com/[username]/[reponame]/blob/[branch]/image.jpg?raw=true](https://github.com/inzhefop/OpenGL-SDL-2D_Sphere/blob/main/sample.png?raw=true))
