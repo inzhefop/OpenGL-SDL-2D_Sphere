@@ -17,3 +17,8 @@ for r=1 -> cos^2(β) = (2x-2x+x^2+1-2+1) / (-2x+2x+1-2+2) = (2x-2x+x^2) / (-2x +
 <=> cos(β) = x </br>
 
 With more polygons the β angle gets lower: β = 2π / polygons. While creating the polygons you cycle trough the angles while adding angle + β until the angle is equal or greater than 2π. </br>
+
+The 3D light effect is created in the fragment shader, where I interpolated the 2D plane to a 3D sphere using the sphere function. This equation is used to create the normal vectors from the middle of the sphere: </br>
+x^2 + y^2 + z^2 = r^2 <=> sqrt(-pos.x^2 - pos.y^2 + radius^2) = z </br>
+
+After passing a uniform light-source vector, the angle between those two vectors is calculated and normalized to a value between 0 and 1 and used for the brightness of this fragment. For realism this brightness-value is potntiated with 4 (or 3) and then passed as the value for red, green and blue
